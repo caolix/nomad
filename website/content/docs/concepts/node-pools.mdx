@@ -355,6 +355,54 @@ Another scenario where mixing algorithms may be useful is to separate workloads
 that are more sensitive to noisy neighbors (and thus use the `spread`
 algorithm), from those that are able to be packed more tightly (`binpack`).
 
+### Running Workloads on Server Agents
+
+In general, it is not advisable to run a Nomad agent with both client and
+server enabled. Some of the reasons to avoid this pattern include:
+
+* **Resource Usage:** Nomad servers can consume a significant amount of memory
+  and CPU in order to store state and schedule workloads. Allocations running
+  in the same machine may reduce the amount of resources available to servers.
+
+* **Security:** Nomad servers are often restricted to internal network traffic
+  and have tight control over what they run. A client agent may expose the node
+  to arbitrary execution of jobs.
+
+Despite these important caveats, sometimes it may be useful to run specific
+operations across an entire fleet of nodes, servers included.
+
+Node pools can help prevent unexpected placement of allocations in client
+agents running alongside servers.
+
+```hcl
+client {
+  node_pool = "servers"
+
+  # Reverse most of the node's resources for the server agent.
+  reserved {
+    cpu    = 2000
+    memory = 4096
+  }
+}
+```
+
+Jobs can target server agents using the `servers` or `all` node pools.
+
+```hcl
+job "monitor-servers" {
+  node_pool = "servers"
+  # ...
+}
+```
+
+```hcl
+job "log-shipper" {
+  # This job will also collect logs from servers.
+  node_pool = "all"
+  # ...
+}
+```
+
 [cli_np_apply]: /nomad/docs/commands/node-pool/apply
 [cli_agent_np]: /nomad/docs/commands/agent#node-pool
 [client_np]: /nomad/docs/configuration/client#node_pool
